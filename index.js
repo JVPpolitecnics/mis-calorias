@@ -37,12 +37,14 @@ const MAX_BODY_BYTES = 6 * 1024 * 1024; // una foto de 1024 px en base64 ocupa ~
 const PROMPT = `Eres un nutricionista experto. Analiza la foto de comida.
 Identifica cada alimento visible por separado y estima su porción a partir de lo que se ve (tamaño del plato, cubiertos, etc.).
 Para cada alimento da: nombre corto en español de España, un emoji que lo represente, la porción estimada (por ejemplo "150 g", "1 unidad · 120 g" o "1 vaso · 200 ml"), kcal, proteína, carbohidratos y grasas en gramos.
-Usa valores nutricionales realistas de tablas estándar (BEDCA/USDA). Ten en cuenta el aceite o salsas visibles.
+Usa valores nutricionales realistas de tablas estándar (BEDCA/USDA). Ten en cuenta las salsas visibles.
+ACEITE: si el plato está frito, salteado, a la plancha, guisado, rehogado o aliñado (ensaladas, tostadas, verduras), añade SIEMPRE un alimento aparte llamado "Aceite de oliva" (o el tipo de aceite o grasa que sea más probable, p. ej. "Mantequilla"), emoji 🫒, con los gramos aproximados de aceite que lleva el plato (absorbido + visible), porción con el formato "~10 g · 1 cucharada", y aprox=true. Referencias: 1 cucharada sopera ≈ 10 g ≈ 90 kcal; un frito absorbe ~8-15 g por ración; un salteado o plancha ~5-10 g; un aliño de ensalada ~10-15 g. No cuentes ese aceite dentro de los demás alimentos (para no contarlo dos veces). Si el plato no lleva aceite ni grasa añadida (fruta, yogur, cocido al vapor…), no añadas esa línea.
+Para el resto de alimentos pon aprox=false.
 "plato" es un nombre corto para toda la comida (por ejemplo "Pollo con arroz y ensalada").
 Si en la foto no hay comida ni bebida, pon esComida=false y alimentos vacío.
 Responde solo con el JSON.`;
 
-const ITEM_KEYS = ['nombre', 'emoji', 'porcion', 'kcal', 'proteina', 'carbohidratos', 'grasas'];
+const ITEM_KEYS = ['nombre', 'emoji', 'porcion', 'kcal', 'proteina', 'carbohidratos', 'grasas', 'aprox'];
 const SCHEMA = {
   type: 'OBJECT',
   properties: {
@@ -60,6 +62,7 @@ const SCHEMA = {
           proteina: { type: 'NUMBER' },
           carbohidratos: { type: 'NUMBER' },
           grasas: { type: 'NUMBER' },
+          aprox: { type: 'BOOLEAN' },
         },
         required: ITEM_KEYS,
         propertyOrdering: ITEM_KEYS,
@@ -141,6 +144,7 @@ export function clean(raw) {
       proteina: num(a?.proteina),
       carbohidratos: num(a?.carbohidratos),
       grasas: num(a?.grasas),
+      ...(a?.aprox === true ? { aprox: true } : {}),
     }))
     .slice(0, 20);
   const total = alimentos.reduce(
